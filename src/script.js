@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'; // ✅ استيراد GLTFLoader
 
 // إعداد المشهد
 const scene = new THREE.Scene();
@@ -21,15 +22,20 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// قمر صناعي بسيط
-const satellite = new THREE.Mesh(
-  new THREE.BoxGeometry(0.5, 0.5, 1),
-  new THREE.MeshStandardMaterial({ color: 0xffaa00 })
-);
-satellite.position.set(0, 0.25, 0);
-scene.add(satellite);
+// ✅ تحميل نموذج الصاروخ
+const loader = new GLTFLoader();
+loader.load('Saturn V.glb', (gltf) => {
+  const rocket = gltf.scene;
 
-// الإضاءة (مصحة)
+  rocket.scale.set(1, 1, 1); // تصغير الحجم حسب النموذج
+  rocket.position.set(0, 0, 0); // وضعه على الأرض
+
+  scene.add(rocket);
+}, undefined, (error) => {
+  console.error('فشل تحميل الصاروخ:', error);
+});
+
+// الإضاءة
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(10, 20, 10);
 scene.add(light);
@@ -64,8 +70,7 @@ window.addEventListener('keydown', (e) => {
     case 'KeyD': move.right = true; break;
     case 'Space': moveUp = true; break;
     case 'ShiftLeft':
-    case 'ShiftRight':
-      moveDown = true; break;
+    case 'ShiftRight': moveDown = true; break;
   }
 });
 window.addEventListener('keyup', (e) => {
@@ -76,18 +81,20 @@ window.addEventListener('keyup', (e) => {
     case 'KeyD': move.right = false; break;
     case 'Space': moveUp = false; break;
     case 'ShiftLeft':
-    case 'ShiftRight':
-      moveDown = false; break;
+    case 'ShiftRight': moveDown = false; break;
   }
 });
 
 function updateMovement() {
   if (!controls.isLocked) return;
+
   direction.z = Number(move.forward) - Number(move.backward);
   direction.x = Number(move.right) - Number(move.left);
   direction.normalize();
+
   velocity.x = direction.x * moveSpeed;
   velocity.z = direction.z * moveSpeed;
+
   controls.moveRight(velocity.x);
   controls.moveForward(velocity.z);
 
