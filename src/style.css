@@ -1,0 +1,32 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 100%);
+}
+
+.info {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    text-align: right;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.info h1 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    color: #4fc3f7;
+}
+
+.info p {
+    margin: 0;
+    font-size: 14px;
+    color: #b0bec5;
+}
+  
