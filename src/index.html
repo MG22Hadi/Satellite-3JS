@@ -13,6 +13,29 @@
       padding: 10px 20px;
       font-size: 16px;
     }
+    .instructions {
+      position: fixed;
+      top: 50px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      z-index: 1000;
+      max-width: 300px;
+    }
+    .status {
+      position: fixed;
+      bottom: 20px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      z-index: 1000;
+    }
   </style>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
@@ -21,6 +44,21 @@
 </head>
 <body>
   <div id="cameraCoords" style="position:fixed;top:10px;left:10px;background:#fff;padding:5px;z-index:1000;font-family:monospace"></div>
+  
+  <div class="instructions">
+    <h3>🎮 التحكم:</h3>
+    <p>WASD - التحرك</p>
+    <p>Space - الصعود</p>
+    <p>Shift - النزول</p>
+    <p>X - تدوير الكماشة</p>
+    <p>L - إطلاق الصاروخ (بعد تدوير الكماشة)</p>
+  </div>
+  
+  <div class="status">
+    <div id="clampRotationStatus">زاوية الدوران: 0°</div>
+    <div id="launchStatus">حالة الإطلاق: جاهز</div>
+  </div>
+  
   <button id="startBtn">ابدأ اللعب</button>
   <script type="module" src="script.js"></script>
 </body>
