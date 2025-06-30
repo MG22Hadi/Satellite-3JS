@@ -5,16 +5,16 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // المشهد
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
-scene.fog = new THREE.Fog(0x87CEEB, 20, 100);
+scene.fog = new THREE.Fog(0x87CEEB, 10000, 20000); // الضباب مفعّل دائماً بقيم بعيدة جداً
 
 // الكاميرا
 const camera = new THREE.PerspectiveCamera(
   75, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-camera.position.set(0, 5, 25);
+camera.position.set(0, 50, 25);
 camera.lookAt(
   camera.position.x ,         // لليمين
-  camera.position.y ,         // للأسفل قليلاً (غيّر الرقم حسب الحاجة)
+  camera.position.y -5,         // للأسفل قليلاً (غيّر الرقم حسب الحاجة)
   camera.position.z
 );
 
@@ -25,7 +25,7 @@ document.body.appendChild(renderer.domElement);
 
 // الأرض
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(500, 500),
+  new THREE.PlaneGeometry(3000, 3000),
   new THREE.MeshStandardMaterial({ color: 0x228B22 })
 );
 ground.rotation.x = -Math.PI / 2;
@@ -64,159 +64,136 @@ let smokeParticles = [];
 let rocketObject = null; // متغير لتخزين مرجع الصاروخ
 let clampObject = null; // مرجع الكماشة
 
+// تعريف المتغيرات العامة للعناصر الأرضية
+let launchBase, column, flagPole, greenStripe, whiteStripe, blackStripe, star1, star2, star3;
+
 // تحميل نموذج Saturn V وتجزئة المراحل
 const loader = new GLTFLoader();
 loader.load('SaturnV.glb', (gltf) => {
-
   const rocket = gltf.scene;
   rocket.scale.set(1, 1, 1);
   rocket.position.set(0, 4.5, -0.7);
-  
-  // تخزين مرجع للصاروخ
   rocketObject = rocket;
-
   scene.add(rocket);
   // قاعدة إطلاق إسمنتية كبيرة
-const launchBase = new THREE.Mesh(
-  new THREE.BoxGeometry(40, 4, 40),
-  new THREE.MeshStandardMaterial({ color: 0x777777 })
-);
-launchBase.position.set(0, 0.5, 0); // ترفع الصاروخ للأعلى قليلاً
-scene.add(launchBase);
-
-// أرجل أو أعمدة دعم على الزوايا
-const legMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-const legGeometry = new THREE.CylinderGeometry(1, 1, 20, 16); // سميكة وطويلة
-
-const legPositions = [
-  [15, 0, 15],
-  [-15,0, 15],
-  [-15, 0, -15],
-  [15, 0, -15]
-];
-
-legPositions.forEach(([x, y, z]) => {
-  const leg = new THREE.Mesh(legGeometry, legMaterial);
-  leg.position.set(x, y, z);
-  scene.add(leg);
-});
-
-// 1. القاعدة الممخروطية
-const coneRadius = 6; // عدل حسب حجم الصاروخ
-const coneHeight = 8;
-const topRadius = 2.2; // نصف قطر دائرة التماس مع الصاروخ (قيمة تقريبية)
-const coneGeometry = new THREE.CylinderGeometry(topRadius, coneRadius, coneHeight, 32);
-const coneMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-const coneBase = new THREE.Mesh(coneGeometry, coneMaterial);
-coneBase.position.set(0, 0.5, 0); // فوق قاعدة الإطلاق وتحت الصاروخ
-scene.add(coneBase);
-
-// 2. العمود الجانبي
-const rocketRadius = 2; // عدل حسب حجم الصاروخ الفعلي
-const rocketHeight = 20; // عدل حسب ارتفاع الصاروخ الفعلي
-const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, rocketHeight, 16);
-const columnMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-const column = new THREE.Mesh(columnGeometry, columnMaterial);
-// ضع العمود بجانب الصاروخ أقرب وأبدأ من الأرضية
-column.position.set(rocketRadius + 2, rocketHeight / 2, 0);
-scene.add(column);
-
-// إضافة علم سوريا في قمة العمود
-const flagPoleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 4, 8); // تكبير ارتفاع العصا من 2 إلى 4
-const flagPoleMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // لون خشبي
-const flagPole = new THREE.Mesh(flagPoleGeometry, flagPoleMaterial);
-flagPole.position.set(rocketRadius + 2, rocketHeight + 2, 0); // رفع موضع العصا من +1 إلى +2
-scene.add(flagPole);
-
-// إنشاء علم سوريا (الألوان الصحيحة: أخضر، أبيض، أسود مع ثلاث نجوم حمراء)
-const flagWidth = 3; // تكبير عرض العلم
-const flagHeight = 2; // تكبير ارتفاع العلم
-const stripeHeight = flagHeight / 3; // كل شريط ثلث العلم
-
-// الشريط الأخضر (الأعلى)
-const greenStripeGeometry = new THREE.PlaneGeometry(flagWidth, stripeHeight);
-const greenMaterial = new THREE.MeshStandardMaterial({ color: 0x007A3D, side: THREE.DoubleSide });
-const greenStripe = new THREE.Mesh(greenStripeGeometry, greenMaterial);
-greenStripe.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2 + stripeHeight, 0);
-
-// الشريط الأبيض (الوسط)
-const whiteStripeGeometry = new THREE.PlaneGeometry(flagWidth, stripeHeight);
-const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
-const whiteStripe = new THREE.Mesh(whiteStripeGeometry, whiteMaterial);
-whiteStripe.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2, 0);
-
-// الشريط الأسود (الأسفل)
-const blackStripeGeometry = new THREE.PlaneGeometry(flagWidth, stripeHeight);
-const blackMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, side: THREE.DoubleSide });
-const blackStripe = new THREE.Mesh(blackStripeGeometry, blackMaterial);
-blackStripe.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2 - stripeHeight, 0);
-
-// إضافة ثلاث نجوم حمراء في الوسط (مكبرة)
-const starGeometry = new THREE.PlaneGeometry(0.3, 0.3); // تكبير حجم النجوم
-const starMaterial = new THREE.MeshStandardMaterial({ color: 0xCE1126, side: THREE.DoubleSide });
-
-// النجمة الأولى (اليسار)
-const star1 = new THREE.Mesh(starGeometry, starMaterial);
-star1.position.set(rocketRadius + 2 + flagWidth/2 - 0.8, rocketHeight + 2, 0.01);
-
-// النجمة الثانية (الوسط)
-const star2 = new THREE.Mesh(starGeometry, starMaterial);
-star2.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2, 0.01);
-
-// النجمة الثالثة (اليمين)
-const star3 = new THREE.Mesh(starGeometry, starMaterial);
-star3.position.set(rocketRadius + 2 + flagWidth/2 + 0.8, rocketHeight + 2, 0.01);
-
-// إضافة جميع أجزاء العلم للمشهد
-scene.add(greenStripe);
-scene.add(whiteStripe);
-scene.add(blackStripe);
-scene.add(star1);
-scene.add(star2);
-scene.add(star3);
-
-// 3. الربط بين الصاروخ والعمود (أسطوانة أفقية صغيرة)
-const linkGeometry = new THREE.CylinderGeometry(0.3, 0.3, rocketRadius + 2, 8);
-const linkMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-const link = new THREE.Mesh(linkGeometry, linkMaterial);
-// ضع الربط عند قاعدة الصاروخ، ودوّره ليكون أفقيًا
-link.position.set((rocketRadius + 2) / 2, 4 + 1, 0);
-link.rotation.z = Math.PI / 2;
-scene.add(link);
-
-// 4. الربط العلوي بين الصاروخ والعمود (أسطوانة أفقية صغيرة في أعلى الصاروخ)
-const topLinkGeometry = new THREE.CylinderGeometry(0.3, 0.3, rocketRadius +0.5, 8);
-const topLinkMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-const topLink = new THREE.Mesh(topLinkGeometry, topLinkMaterial);
-// ضع الربط في أعلى الصاروخ، ودوّره ليكون أفقيًا
-topLink.position.set(2.4, 14 , 0);
-topLink.rotation.z = Math.PI / 2;
-
-// 4.5. نصف دائرة تحيط برأس الصاروخ (في الأعلى) - صلبة
-const ringMaterial = new THREE.MeshStandardMaterial({ 
-  color: 0x444444,
-  side: THREE.DoubleSide // عرض الوجهين لمنع الشفافية
-});
-
-// إنشاء نصف دائرة صلبة باستخدام TorusGeometry مع إعدادات محسنة
-const topRingGeometry = new THREE.TorusGeometry(1, 0.3, 16, 32, Math.PI);
-const topRing = new THREE.Mesh(topRingGeometry, ringMaterial);
-topRing.position.set(0, 14, 0);
-topRing.rotation.x = Math.PI / 2;
-topRing.rotation.z = -Math.PI / 2;
-
-// إنشاء الكماشة كمجموعة واحدة
-const clampGroup = new THREE.Group();
-clampGroup.add(topLink);
-clampGroup.add(topRing);
-clampGroup.position.set(0,-3, 0); // موضع الكماشة
-scene.add(clampGroup);
-clampObject = clampGroup;
-
+  launchBase = new THREE.Mesh(
+    new THREE.BoxGeometry(40, 4, 40),
+    new THREE.MeshStandardMaterial({ color: 0x777777 })
+  );
+  launchBase.position.set(0, 0.5, 0);
+  scene.add(launchBase);
+  // أرجل أو أعمدة دعم على الزوايا
+  const legMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+  const legGeometry = new THREE.CylinderGeometry(1, 1, 20, 16);
+  const legPositions = [
+    [15, 0, 15],
+    [-15,0, 15],
+    [-15, 0, -15],
+    [15, 0, -15]
+  ];
+  legPositions.forEach(([x, y, z]) => {
+    const leg = new THREE.Mesh(legGeometry, legMaterial);
+    leg.position.set(x, y, z);
+    scene.add(leg);
+  });
+  // 2. العمود الجانبي
+  const rocketRadius = 2;
+  const rocketHeight = 20;
+  const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, rocketHeight, 16);
+  const columnMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  column = new THREE.Mesh(columnGeometry, columnMaterial);
+  column.position.set(rocketRadius + 2, rocketHeight / 2, 0);
+  scene.add(column);
+  // إضافة علم سوريا في قمة العمود
+  const flagPoleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 4, 8);
+  const flagPoleMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+  flagPole = new THREE.Mesh(flagPoleGeometry, flagPoleMaterial);
+  flagPole.position.set(rocketRadius + 2, rocketHeight + 2, 0);
+  scene.add(flagPole);
+  // إنشاء علم سوريا
+  const flagWidth = 3;
+  const flagHeight = 2;
+  const stripeHeight = flagHeight / 3;
+  const greenStripeGeometry = new THREE.PlaneGeometry(flagWidth, stripeHeight);
+  const greenMaterial = new THREE.MeshStandardMaterial({ color: 0x007A3D, side: THREE.DoubleSide });
+  greenStripe = new THREE.Mesh(greenStripeGeometry, greenMaterial);
+  greenStripe.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2 + stripeHeight, 0);
+  const whiteStripeGeometry = new THREE.PlaneGeometry(flagWidth, stripeHeight);
+  const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+  whiteStripe = new THREE.Mesh(whiteStripeGeometry, whiteMaterial);
+  whiteStripe.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2, 0);
+  const blackStripeGeometry = new THREE.PlaneGeometry(flagWidth, stripeHeight);
+  const blackMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, side: THREE.DoubleSide });
+  blackStripe = new THREE.Mesh(blackStripeGeometry, blackMaterial);
+  blackStripe.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2 - stripeHeight, 0);
+  // النجوم
+  const starGeometry = new THREE.PlaneGeometry(0.3, 0.3);
+  const starMaterial = new THREE.MeshStandardMaterial({ color: 0xCE1126, side: THREE.DoubleSide });
+  star1 = new THREE.Mesh(starGeometry, starMaterial);
+  star1.position.set(rocketRadius + 2 + flagWidth/2 - 0.8, rocketHeight + 2, 0.01);
+  star2 = new THREE.Mesh(starGeometry, starMaterial);
+  star2.position.set(rocketRadius + 2 + flagWidth/2, rocketHeight + 2, 0.01);
+  star3 = new THREE.Mesh(starGeometry, starMaterial);
+  star3.position.set(rocketRadius + 2 + flagWidth/2 + 0.8, rocketHeight + 2, 0.01);
+  scene.add(greenStripe);
+  scene.add(whiteStripe);
+  scene.add(blackStripe);
+  scene.add(star1);
+  scene.add(star2);
+  scene.add(star3);
+  // 3. الربط بين الصاروخ والعمود (أسطوانة أفقية صغيرة)
+  const linkGeometry = new THREE.CylinderGeometry(0.3, 0.3, rocketRadius + 2, 8);
+  const linkMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const link = new THREE.Mesh(linkGeometry, linkMaterial);
+  // ضع الربط عند قاعدة الصاروخ، ودوّره ليكون أفقيًا
+  link.position.set((rocketRadius + 2) / 2, 4 + 1, 0);
+  link.rotation.z = Math.PI / 2;
+  scene.add(link);
+  // 4. الربط العلوي بين الصاروخ والعمود (أسطوانة أفقية صغيرة في أعلى الصاروخ)
+  const topLinkGeometry = new THREE.CylinderGeometry(0.3, 0.3, rocketRadius +0.5, 8);
+  const topLinkMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const topLink = new THREE.Mesh(topLinkGeometry, topLinkMaterial);
+  // ضع الربط في أعلى الصاروخ، ودوّره ليكون أفقيًا
+  topLink.position.set(2.4, 14 , 0);
+  topLink.rotation.z = Math.PI / 2;
+  // 4.5. نصف دائرة تحيط برأس الصاروخ (في الأعلى) - صلبة
+  const ringMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x444444,
+    side: THREE.DoubleSide // عرض الوجهين لمنع الشفافية
+  });
+  // إنشاء نصف دائرة صلبة باستخدام TorusGeometry مع إعدادات محسنة
+  const topRingGeometry = new THREE.TorusGeometry(1, 0.3, 16, 32, Math.PI);
+  const topRing = new THREE.Mesh(topRingGeometry, ringMaterial);
+  topRing.position.set(0, 14, 0);
+  topRing.rotation.x = Math.PI / 2;
+  topRing.rotation.z = -Math.PI / 2;
+  // إنشاء الكماشة كمجموعة واحدة
+  const clampGroup = new THREE.Group();
+  clampGroup.add(topLink);
+  clampGroup.add(topRing);
+  clampGroup.position.set(0,-3, 0); // موضع الكماشة
+  scene.add(clampGroup);
+  clampObject = clampGroup;
 }, undefined, (error) => {
   console.error('⚠️ فشل تحميل النموذج:', error);
 });
 
+// --- كرة الأرضية ---
+let earthMesh = null;
+const earthGeometry = new THREE.SphereGeometry(20, 64, 64);
+const earthTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+const earthMaterial = new THREE.MeshStandardMaterial({ map: earthTexture });
+earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+earthMesh.position.set(0, -50, 0); // تحت نقطة الانطلاق
+const initialEarthScale = 20;
+earthMesh.scale.setScalar(initialEarthScale);
+earthMesh.visible = false;
+// اجعل خط الاستواء في الواجهة (وليس القطب)
+earthMesh.rotation.x = -Math.PI /2.8; // خط الاستواء في المنتصف
+// أضف دوران حول Y ليكون الشرق الأوسط في المنتصف
+const middleEastLongitude = 100; // أو 120 أو 140 حسب التجربة
+earthMesh.rotation.y = -middleEastLongitude / 360 * Math.PI+4.9;
+scene.add(earthMesh);
 
 // الحركة
 const move = { forward: false, backward: false, left: false, right: false };
@@ -458,6 +435,79 @@ function animate() {
   updateClampRotation();
   updateRocketLaunch();
   updateParticles();
+
+  // --- انتقال الضباب تدريجياً مع الارتفاع ---
+  let fogStart = 200, fogEnd = 330;
+  if (camera.position.y < fogStart) {
+    scene.fog.near = 10000;
+    scene.fog.far = 20000;
+  } else if (camera.position.y < fogEnd) {
+    let t = (camera.position.y - fogStart) / (fogEnd - fogStart); // من 0 إلى 1
+    scene.fog.near = 50 + t * 200; // من 50 إلى 250
+    scene.fog.far = 1000 - t * 800; // من 1000 إلى 200
+  } else {
+    // بعد 330، الضباب يختفي تماماً
+    scene.fog.near = 10000;
+    scene.fog.far = 20000;
+  }
+
+  // --- تصغير واختفاء الأرض المسطحة ومحتوياتها تدريجياً ---
+  const groundFadeStart = 200;
+  const groundFadeEnd = 330;
+  let groundT = 1;
+  // إذا تجاوزنا ارتفاع 300 (انتهاء الضباب)، نخفي كل العناصر الأرضية فوراً
+  if (camera.position.y > 300) {
+    groundT = 0;
+  } else if (camera.position.y > groundFadeStart) {
+    groundT = 1 - Math.min((camera.position.y - groundFadeStart) / (groundFadeEnd - groundFadeStart), 1);
+  }
+  ground.visible = groundT > 0.01;
+  ground.scale.setScalar(groundT);
+  if (launchBase) { launchBase.visible = groundT > 0.01; launchBase.scale.setScalar(groundT); }
+  // إخفاء أرجل الدعم مع الأرض
+  scene.children.forEach(obj => {
+    if (obj.geometry && obj.geometry.type === 'CylinderGeometry' && obj !== column) {
+      obj.visible = groundT > 0.01;
+      obj.scale.setScalar(groundT);
+    }
+  });
+  if (column) { column.visible = groundT > 0.01; column.scale.setScalar(groundT); }
+  if (flagPole) { flagPole.visible = groundT > 0.01; flagPole.scale.setScalar(groundT); }
+  if (greenStripe) { greenStripe.visible = groundT > 0.01; greenStripe.scale.setScalar(groundT); }
+  if (whiteStripe) { whiteStripe.visible = groundT > 0.01; whiteStripe.scale.setScalar(groundT); }
+  if (blackStripe) { blackStripe.visible = groundT > 0.01; blackStripe.scale.setScalar(groundT); }
+  if (star1) { star1.visible = groundT > 0.01; star1.scale.setScalar(groundT); }
+  if (star2) { star2.visible = groundT > 0.01; star2.scale.setScalar(groundT); }
+  if (star3) { star3.visible = groundT > 0.01; star3.scale.setScalar(groundT); }
+  if (rocketObject) { rocketObject.visible = groundT > 0.01; rocketObject.scale.setScalar(groundT); }
+  if (clampObject) { clampObject.visible = groundT > 0.01; clampObject.scale.setScalar(groundT); }
+
+  // --- ظهور الأرض الكروية تدريجياً مع الارتفاع ---
+  if (earthMesh) {
+    if (camera.position.y >= 330) {
+      earthMesh.rotation.y += 0.0002; // دوران بطيء حول المحور Y
+    }
+    const earthAppearStart = 300, earthAppearEnd = 600;
+    let t = Math.min(Math.max((camera.position.y - earthAppearStart) / (earthAppearEnd - earthAppearStart), 0), 1);
+    let scale = initialEarthScale - t * (initialEarthScale - 1.5);
+    earthMesh.visible = t > 0.01;
+    earthMesh.material.transparent = true;
+    earthMesh.material.opacity = t;
+    earthMesh.scale.setScalar(scale);
+  }
+
+  // --- منطق تقليص الرؤية ---
+  const cameraHeight = camera.position.y;
+  let minFov = 30, maxFov = 75, minHeight = 50, maxHeight = 600;
+  if (cameraHeight > minHeight) {
+    let t = Math.min((cameraHeight - minHeight) / (maxHeight - minHeight), 1);
+    camera.fov = maxFov - t * (maxFov - minFov);
+    camera.updateProjectionMatrix();
+  } else {
+    camera.fov = maxFov;
+    camera.updateProjectionMatrix();
+  }
+
   renderer.render(scene, camera);
 
   // تحديث إحداثيات الكاميرا
@@ -465,14 +515,12 @@ function animate() {
   document.getElementById('cameraCoords').textContent =
     `Camera: x=${camPos.x.toFixed(2)}, y=${camPos.y.toFixed(2)}, z=${camPos.z.toFixed(2)}`;
   
-  // تحديث زاوية دوران الكماشة
   const clampRotationElement = document.getElementById('clampRotationStatus');
   if (clampRotationElement) {
     const angleInDegrees = (clampRotationAngle * 180 / Math.PI).toFixed(1);
     clampRotationElement.textContent = `زاوية الدوران: ${angleInDegrees}°`;
   }
   
-  // تحديث حالة الإطلاق
   const launchStatusElement = document.getElementById('launchStatus');
   if (launchStatusElement) {
     if (isLaunching) {
