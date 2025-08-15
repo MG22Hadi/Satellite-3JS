@@ -11,17 +11,20 @@ scene.fog = new THREE.Fog(0x87CEEB, 10000, 20000); // الضباب مفعّل د
 const camera = new THREE.PerspectiveCamera(
   75, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-camera.position.set(0, 50, 25);
-camera.lookAt(
-  camera.position.x ,         // لليمين
-  camera.position.y -5,         // للأسفل قليلاً (غيّر الرقم حسب الحاجة)
-  camera.position.z
-);
+camera.position.set(0, 25, 25);
+camera.lookAt(0, 0, 0);
 
 // الراسم
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+// ساعة لحساب الزمن بين الإطارات (Delta Time)
+const clock = new THREE.Clock();
+// سرعة دوران الأرض الواقعية (راديان في الثانية): دورة كاملة كل 24 ساعة
+const EARTH_ROTATION_RAD_PER_SEC = (2 * Math.PI) / (24 * 60 * 60);
+// مُعامل تضخيم بسيط لجعل الدوران مرئيًا قليلًا مع الحفاظ على الواقعية النسبية
+const EARTH_ROTATION_VISIBILITY_MULTIPLIER = 30; // غيّره بين 10 و 30 حسب تفضيلك
 
 // الأرض
 const ground = new THREE.Mesh(
@@ -64,6 +67,23 @@ let smokeParticles = [];
 let rocketObject = null; // متغير لتخزين مرجع الصاروخ
 let clampObject = null; // مرجع الكماشة
 
+// مراحل ما بعد الغيوم: تحكم بالسرعة والحجم للإحساس بالمسافة
+const FOG_START_Y = 200;
+const FOG_END_Y = 330;
+let rocketSpeedGround = rocketLaunchSpeed; // السرعة قبل الغيوم
+let rocketSpeedSpace = 0.2; // تُحسب عند الإطلاق لتحقيق نسبة 3x
+const desiredCloudsToOrbitTimeRatio = 3; // الزمن من الغيوم للمدار = 3x زمن من الإطلاق للغيوم
+const rocketScaleGround = 1;
+const rocketScaleSpaceEnd = 0.1; // الحجم عند المدار لإحساس أقوى بالبعد
+
+// --- متغيرات إحداثيات قاعدة المخروط المبتور ---
+let frustumBaseX = 0;
+let frustumBaseY =0.5 ; // الافتراضي: نصف الارتفاع
+let frustumBaseZ = -0.; // نفس إزاحة الصاروخ
+
+// قيمة ارتفاع الوصول إلى المدار (تُستخدم في أكثر من موضع)
+const orbitTargetY = 370; // يمكن تعديلها لاحقًا لتصبح ديناميكية
+
 // تعريف المتغيرات العامة للعناصر الأرضية
 let launchBase, column, flagPole, greenStripe, whiteStripe, blackStripe, star1, star2, star3;
 
@@ -75,6 +95,17 @@ loader.load('SaturnV.glb', (gltf) => {
   rocket.position.set(0, 4.5, -0.7);
   rocketObject = rocket;
   scene.add(rocket);
+  // --- قاعدة مخروطية تحت الصاروخ ---
+  // قاعدة مخروطية مبتورة (Frustum)
+  const coneBaseRadius = 6; // القاعدة السفلية
+  const coneTopRadius = 2;  // الدائرة العلوية الصغيرة
+  const coneHeight = 8;
+  const frustumGeometry = new THREE.CylinderGeometry(coneTopRadius, coneBaseRadius, coneHeight, 32);
+  const frustumMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
+  const frustumBase = new THREE.Mesh(frustumGeometry, frustumMaterial);
+  // استخدم المتغيرات للتحكم في موضع القاعدة
+  frustumBase.position.set(frustumBaseX, frustumBaseY, frustumBaseZ);
+  scene.add(frustumBase);
   // قاعدة إطلاق إسمنتية كبيرة
   launchBase = new THREE.Mesh(
     new THREE.BoxGeometry(40, 4, 40),
@@ -184,7 +215,7 @@ const earthGeometry = new THREE.SphereGeometry(20, 64, 64);
 const earthTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
 const earthMaterial = new THREE.MeshStandardMaterial({ map: earthTexture });
 earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
-earthMesh.position.set(0, -50, 0); // تحت نقطة الانطلاق
+earthMesh.position.set(0, 0, 0); // في مركز المشهد
 const initialEarthScale = 20;
 earthMesh.scale.setScalar(initialEarthScale);
 earthMesh.visible = false;
@@ -194,6 +225,21 @@ earthMesh.rotation.x = -Math.PI /2.8; // خط الاستواء في المنتص
 const middleEastLongitude = 100; // أو 120 أو 140 حسب التجربة
 earthMesh.rotation.y = -middleEastLongitude / 360 * Math.PI+4.9;
 scene.add(earthMesh);
+
+// مدار القمر الصناعي حول الأرض (حلقة رفيعة)
+const baseOrbitRadius = 25; // 3 * نصف قطر الأرض الأصلي
+const orbitTube = 0.1; // سماكة رفيعة جداً
+const orbitRadialSegments = 64;
+const orbitTubularSegments = 200;
+
+const orbitGeometry = new THREE.TorusGeometry(baseOrbitRadius, orbitTube, orbitRadialSegments, orbitTubularSegments);
+const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // أحمر
+const orbitRing = new THREE.Mesh(orbitGeometry, orbitMaterial);
+
+orbitRing.position.copy(earthMesh.position); // نفس مركز الكرة الأرضية
+orbitRing.rotation.x = Math.PI ; // حول خط الاستواء
+
+scene.add(orbitRing);
 
 // الحركة
 const move = { forward: false, backward: false, left: false, right: false };
@@ -294,6 +340,13 @@ function startRocketLaunch() {
   
   isLaunching = true;
   rocketLaunchHeight = 0;
+  // حساب سرعة ما بعد الغيوم لتحقيق نسبة زمن 3x بين (الغيوم→المدار) و(الإطلاق→الغيوم)
+  rocketSpeedGround = rocketLaunchSpeed;
+  const d1 = Math.max(FOG_END_Y - rocketObject.position.y, 1e-6);
+  const d2 = Math.max(orbitTargetY - FOG_END_Y, 1e-6);
+  rocketSpeedSpace = rocketSpeedGround * d2 / (desiredCloudsToOrbitTimeRatio * d1);
+  // حد أمان لعدم بطء شديد أو سرعة كبيرة
+  rocketSpeedSpace = Math.min(Math.max(rocketSpeedSpace, 0.05), rocketSpeedGround);
   console.log('🚀 بدء إطلاق الصاروخ!');
   console.log('موقع الصاروخ الحالي:', rocketObject.position);
   
@@ -330,8 +383,9 @@ function startRocketLaunch() {
 function updateRocketLaunch() {
   if (!isLaunching || !rocketObject) return;
   
-  // تحريك الصاروخ للأعلى
-  rocketObject.position.y += rocketLaunchSpeed;
+  // تحريك الصاروخ للأعلى بسرعات متفاوتة حسب المرحلة
+  const currentSpeed = (rocketObject.position.y < FOG_END_Y) ? rocketSpeedGround : rocketSpeedSpace;
+  rocketObject.position.y += currentSpeed;
   rocketLaunchHeight += rocketLaunchSpeed;
   
   // إنشاء جزيئات الدخان
@@ -340,10 +394,19 @@ function updateRocketLaunch() {
   // إنشاء جزيئات النار
   createFireParticle(rocketObject.position.x, rocketObject.position.y - 3, rocketObject.position.z);
   
-  // إيقاف الإطلاق عند ارتفاع معين
-  if (rocketLaunchHeight > 50) {
+  // ضبط مقياس الصاروخ تدريجيًا بعد الغيوم لإحساس المسافة (ينتقل من 1 إلى rocketScaleSpaceEnd)
+  if (rocketObject.position.y < FOG_END_Y) {
+    rocketObject.scale.setScalar(rocketScaleGround);
+  } else {
+    const tScale = Math.min(Math.max((rocketObject.position.y - FOG_END_Y) / Math.max((orbitTargetY - FOG_END_Y), 1e-6), 0), 1);
+    const scaleVal = THREE.MathUtils.lerp(rocketScaleGround, rocketScaleSpaceEnd, tScale);
+    rocketObject.scale.setScalar(scaleVal);
+  }
+
+  // --- التوقف عند ارتفاع المدار الأحمر ---
+  if (rocketObject.position.y >= orbitTargetY) {
     isLaunching = false;
-    console.log('🚀 تم إطلاق الصاروخ بنجاح!');
+    console.log('🚀 تم إطلاق الصاروخ ووصل إلى المدار!');
   }
 }
 
@@ -431,10 +494,25 @@ function updateParticles() {
 
 function animate() {
   requestAnimationFrame(animate);
+  const dt = clock.getDelta();
   updateMovement();
   updateClampRotation();
   updateRocketLaunch();
   updateParticles();
+
+  // تتبع الكاميرا للصاروخ أثناء الإطلاق ليبقى في منتصف الشاشة مع إبعاد للخلف لظهور كامل الصاروخ
+  if (isLaunching && rocketObject) {
+    const followOffsetY = 10; // ارتفاع الكاميرا فوق الصاروخ
+    const followOffsetZ = 35; // مسافة الكاميرا خلف الصاروخ
+    camera.position.x = rocketObject.position.x;
+    camera.position.y = rocketObject.position.y + followOffsetY;
+    camera.position.z = rocketObject.position.z + followOffsetZ;
+    camera.lookAt(
+      rocketObject.position.x,
+      rocketObject.position.y + 5, // النظر نحو منتصف الصاروخ تقريبًا
+      rocketObject.position.z
+    );
+  }
 
   // --- انتقال الضباب تدريجياً مع الارتفاع ---
   let fogStart = 200, fogEnd = 330;
@@ -479,21 +557,35 @@ function animate() {
   if (star1) { star1.visible = groundT > 0.01; star1.scale.setScalar(groundT); }
   if (star2) { star2.visible = groundT > 0.01; star2.scale.setScalar(groundT); }
   if (star3) { star3.visible = groundT > 0.01; star3.scale.setScalar(groundT); }
-  if (rocketObject) { rocketObject.visible = groundT > 0.01; rocketObject.scale.setScalar(groundT); }
+  if (rocketObject) {
+    if (isLaunching || rocketObject.position.y >= orbitTargetY) {
+      rocketObject.visible = true;
+      rocketObject.scale.setScalar(1);
+    } else {
+      rocketObject.visible = groundT > 0.01;
+      rocketObject.scale.setScalar(groundT);
+    }
+  }
   if (clampObject) { clampObject.visible = groundT > 0.01; clampObject.scale.setScalar(groundT); }
 
   // --- ظهور الأرض الكروية تدريجياً مع الارتفاع ---
   if (earthMesh) {
     if (camera.position.y >= 330) {
-      earthMesh.rotation.y += 0.0002; // دوران بطيء حول المحور Y
+      earthMesh.rotation.y += EARTH_ROTATION_RAD_PER_SEC * EARTH_ROTATION_VISIBILITY_MULTIPLIER * dt; // دوران واقعي مع تضخيم مرئي
     }
     const earthAppearStart = 300, earthAppearEnd = 600;
     let t = Math.min(Math.max((camera.position.y - earthAppearStart) / (earthAppearEnd - earthAppearStart), 0), 1);
     let scale = initialEarthScale - t * (initialEarthScale - 1.5);
     earthMesh.visible = t > 0.01;
-    earthMesh.material.transparent = true;
-    earthMesh.material.opacity = t;
+    earthMesh.material.transparent = false;
+    earthMesh.material.opacity = 1;
     earthMesh.scale.setScalar(scale);
+    orbitRing.scale.setScalar(scale);
+    if (camera.position.y >= 330) {
+      orbitRing.visible = true;
+    } else {
+      orbitRing.visible = false;
+    }
   }
 
   // --- منطق تقليص الرؤية ---
