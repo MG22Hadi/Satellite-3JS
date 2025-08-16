@@ -66,6 +66,11 @@ let launchParticles = [];
 let smokeParticles = [];
 let rocketObject = null; // متغير لتخزين مرجع الصاروخ
 let clampObject = null; // مرجع الكماشة
+let isInOrbit = false; // هل وصل الصاروخ للمدار؟
+let orbitAngle = 0; // زاوية دوران الصاروخ في المدار
+const ORBIT_PERIOD_SECONDS = 90; // دورة المدار بالثواني (أقصر من الواقع لكن مرئي)
+const ORBIT_ECCENTRICITY = 0.1; // انحراف المدار (0 = دائري، 0.1 = إهليلجي خفيف)
+const ORBIT_SEMI_MAJOR_AXIS = 25; // نصف المحور الرئيسي للمدار
 
 // مراحل ما بعد الغيوم: تحكم بالسرعة والحجم للإحساس بالمسافة
 const FOG_START_Y = 200;
@@ -388,6 +393,51 @@ function updateRocketLaunch() {
   rocketObject.position.y += currentSpeed;
   rocketLaunchHeight += rocketLaunchSpeed;
   
+  // مسار منحني: بعد الغيوم قوس سلس لليمين مع دوران رأس الصاروخ
+  if (rocketObject.position.y > FOG_END_Y) {
+    const curveStartY = FOG_END_Y;
+    const curveEndY = orbitTargetY;
+    const t = Math.min(Math.max((rocketObject.position.y - curveStartY) / Math.max(curveEndY - curveStartY, 1e-6), 0), 1);
+    const maxHorizontalOffset = 80; // قوة الانحناء لليمين
+    
+    // قوس سلس لليمين: من عمودي إلى أفقي (تقعر بالاتجاه المعاكس)
+    const horizontalOffset = maxHorizontalOffset * (1 - Math.cos(t * Math.PI * 0.5)); // قوس محدب من 0 إلى +80
+    
+    // تحديث موضع الصاروخ
+    rocketObject.position.x = horizontalOffset;
+    rocketObject.position.z = -0.7;
+    
+    // دوران سلس لرأس الصاروخ: دائماً في اتجاه الحركة
+    if (rocketObject.position.y > curveStartY + 1) { // تجنب القسمة على صفر
+      const prevY = rocketObject.position.y - currentSpeed;
+      const prevT = Math.min(Math.max((prevY - curveStartY) / Math.max(curveEndY - curveStartY, 1e-6), 0), 1);
+      const prevHorizontalOffset = maxHorizontalOffset * (1 - Math.cos(prevT * Math.PI * 0.5));
+      
+      // حساب اتجاه الحركة
+      const deltaX = horizontalOffset - prevHorizontalOffset;
+      const deltaY = currentSpeed;
+      const movementAngle = Math.atan2(deltaX, deltaY);
+      
+      // تطبيق الدوران السلس: رأس الصاروخ في اتجاه الحركة
+      rocketObject.rotation.z = -movementAngle; // دوران حول المحور Z للانحراف الأفقي
+      
+      // دوران إضافي لجعل الصاروخ أفقي بالكامل عند المدار
+      if (t > 0.8) { // في آخر 20% من المسار
+        const finalRotationT = (t - 0.8) / 0.2; // من 0 إلى 1
+        const targetRotationZ = -Math.PI / 2; // 90 درجة لليمين (أفقي)
+        const currentRotationZ = rocketObject.rotation.z;
+        rocketObject.rotation.z = THREE.MathUtils.lerp(currentRotationZ, targetRotationZ, finalRotationT * 0.1); // انتقال سلس
+      }
+      
+      // عند الوصول للمدار: رأس الصاروخ منطبق على المدار
+      if (isInOrbit) {
+        // جعل الصاروخ أفقي تماماً ومطابق للمدار
+        rocketObject.rotation.z = -Math.PI / 2; // 90 درجة لليمين (أفقي)
+        rocketObject.scale.setScalar(1); // حجم ثابت
+      }
+    }
+  }
+  
   // إنشاء جزيئات الدخان
   createSmokeParticle(rocketObject.position.x, rocketObject.position.y - 2, rocketObject.position.z);
   
@@ -406,6 +456,8 @@ function updateRocketLaunch() {
   // --- التوقف عند ارتفاع المدار الأحمر ---
   if (rocketObject.position.y >= orbitTargetY) {
     isLaunching = false;
+    isInOrbit = true;
+    orbitAngle = 0; // إعادة تعيين زاوية المدار
     console.log('🚀 تم إطلاق الصاروخ ووصل إلى المدار!');
   }
 }
@@ -558,9 +610,9 @@ function animate() {
   if (star2) { star2.visible = groundT > 0.01; star2.scale.setScalar(groundT); }
   if (star3) { star3.visible = groundT > 0.01; star3.scale.setScalar(groundT); }
   if (rocketObject) {
-    if (isLaunching || rocketObject.position.y >= orbitTargetY) {
+    if (isLaunching || isInOrbit) {
       rocketObject.visible = true;
-      rocketObject.scale.setScalar(1);
+      rocketObject.scale.setScalar(1); // حجم ثابت عند الإطلاق أو عند المدار
     } else {
       rocketObject.visible = groundT > 0.01;
       rocketObject.scale.setScalar(groundT);
