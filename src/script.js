@@ -59,7 +59,7 @@ let hasRotated = false; // هل تم الدوران من قبل
 
 // متغيرات إطلاق الصاروخ
 let isLaunching = false;
-let rocketLaunchSpeed = 1.2; // زيادة سرعة الإطلاق من 0.5 إلى 1.2
+let rocketLaunchSpeed = 0.5;
 let rocketLaunchHeight = 0;
 let rocketOriginalY = 4.5;
 let launchParticles = [];
@@ -72,26 +72,11 @@ const ORBIT_PERIOD_SECONDS = 90; // دورة المدار بالثواني (أق
 const ORBIT_ECCENTRICITY = 0.1; // انحراف المدار (0 = دائري، 0.1 = إهليلجي خفيف)
 const ORBIT_SEMI_MAJOR_AXIS = 25; // نصف المحور الرئيسي للمدار
 
-// متغيرات فصل المرحلة الأولى
-let firstStageObject = null; // الجزء السفلي من الصاروخ
-let isFirstStageSeparated = false; // هل تم فصل المرحلة الأولى؟
-let firstStageSeparationHeight = 350; // ارتفاع فصل المرحلة الأولى
-let firstStageVelocity = new THREE.Vector3(0, -0.6, 0); // زيادة سرعة سقوط المرحلة الأولى من -0.3 إلى -0.6
-
-// متغيرات التحكم بالكاميرا أثناء التتبع
-let cameraFollowMode = false; // إلغاء التتبع التلقائي
-let cameraOffsetX = 0; // إزاحة الكاميرا في المحور X
-let cameraOffsetY = 10; // إزاحة الكاميرا في المحور Y
-let cameraOffsetZ = 35; // إزاحة الكاميرا في المحور Z
-let cameraRotationX = 0; // دوران الكاميرا حول المحور X
-let cameraRotationY = 0; // دوران الكاميرا حول المحور Y
-let lastCameraUpdate = 0; // لتتبع آخر تحديث للكاميرا
-
 // مراحل ما بعد الغيوم: تحكم بالسرعة والحجم للإحساس بالمسافة
 const FOG_START_Y = 200;
 const FOG_END_Y = 330;
 let rocketSpeedGround = rocketLaunchSpeed; // السرعة قبل الغيوم
-let rocketSpeedSpace = 0.5; // زيادة سرعة المرحلة الفضائية من 0.2 إلى 0.5
+let rocketSpeedSpace = 0.2; // تُحسب عند الإطلاق لتحقيق نسبة 3x
 const desiredCloudsToOrbitTimeRatio = 3; // الزمن من الغيوم للمدار = 3x زمن من الإطلاق للغيوم
 const rocketScaleGround = 1;
 const rocketScaleSpaceEnd = 0.1; // الحجم عند المدار لإحساس أقوى بالبعد
@@ -102,7 +87,7 @@ let frustumBaseY =0.5 ; // الافتراضي: نصف الارتفاع
 let frustumBaseZ = -0.; // نفس إزاحة الصاروخ
 
 // قيمة ارتفاع الوصول إلى المدار (تُستخدم في أكثر من موضع)
-const orbitTargetY = 440; // تم نقص 10 درجات من 450
+const orbitTargetY = 370; // يمكن تعديلها لاحقًا لتصبح ديناميكية
 
 // تعريف المتغيرات العامة للعناصر الأرضية
 let launchBase, column, flagPole, greenStripe, whiteStripe, blackStripe, star1, star2, star3;
@@ -247,7 +232,7 @@ earthMesh.rotation.y = -middleEastLongitude / 360 * Math.PI+4.9;
 scene.add(earthMesh);
 
 // مدار القمر الصناعي حول الأرض (حلقة رفيعة)
-const baseOrbitRadius =( ORBIT_SEMI_MAJOR_AXIS *2)-6; // تكبير نصف القطر قليلاً (+2)
+const baseOrbitRadius = 25; // 3 * نصف قطر الأرض الأصلي
 const orbitTube = 0.1; // سماكة رفيعة جداً
 const orbitRadialSegments = 64;
 const orbitTubularSegments = 200;
@@ -291,51 +276,6 @@ window.addEventListener('keydown', (e) => {
       if (!isLaunching && hasRotated) {
         startRocketLaunch();
       }
-      break;
-    // مفاتيح التحكم بالكاميرا
-    case 'ArrowUp': 
-      cameraOffsetY += 2; // زيادة ارتفاع الكاميرا
-      break;
-    case 'ArrowDown': 
-      cameraOffsetY -= 2; // تقليل ارتفاع الكاميرا
-      break;
-    case 'ArrowLeft': 
-      cameraOffsetX -= 2; // تحريك الكاميرا لليسار
-      break;
-    case 'ArrowRight': 
-      cameraOffsetX += 2; // تحريك الكاميرا لليمين
-      break;
-    case 'KeyQ': 
-      cameraOffsetZ += 2; // تقريب الكاميرا
-      break;
-    case 'KeyE': 
-      cameraOffsetZ -= 2; // إبعاد الكاميرا
-      break;
-    case 'KeyZ': 
-      cameraRotationX += 0.1; // دوران رأسي للأعلى
-      break;
-    case 'KeyC': 
-      cameraRotationX -= 0.1; // دوران رأسي للأسفل
-      break;
-    case 'KeyV': 
-      cameraRotationY += 0.1; // دوران أفقي لليمين
-      break;
-    case 'KeyB': 
-      cameraRotationY -= 0.1; // دوران أفقي لليسار
-      break;
-    case 'KeyR': 
-      // إعادة تعيين إعدادات الكاميرا
-      cameraOffsetX = 0;
-      cameraOffsetY = 10;
-      cameraOffsetZ = 35;
-      cameraRotationX = 0;
-      cameraRotationY = 0;
-      console.log('🔄 تم إعادة تعيين إعدادات الكاميرا');
-      break;
-    case 'KeyT': 
-      // تبديل وضع التتبع
-      cameraFollowMode = !cameraFollowMode;
-      console.log(cameraFollowMode ? '📹 وضع التتبع التلقائي مفعل' : '🎮 وضع التحكم اليدوي مفعل');
       break;
   }
 });
@@ -453,11 +393,6 @@ function updateRocketLaunch() {
   rocketObject.position.y += currentSpeed;
   rocketLaunchHeight += rocketLaunchSpeed;
   
-  // فصل المرحلة الأولى عند ارتفاع معين
-  if (!isFirstStageSeparated && rocketObject.position.y >= firstStageSeparationHeight) {
-    separateFirstStage();
-  }
-  
   // مسار منحني: بعد الغيوم قوس سلس لليمين مع دوران رأس الصاروخ
   if (rocketObject.position.y > FOG_END_Y) {
     const curveStartY = FOG_END_Y;
@@ -503,13 +438,11 @@ function updateRocketLaunch() {
     }
   }
   
-  // إنشاء جزيئات الدخان (فقط أثناء الإطلاق)
-  if (!isInOrbit) {
-    createSmokeParticle(rocketObject.position.x, rocketObject.position.y - 2, rocketObject.position.z);
-    
-    // إنشاء جزيئات النار (فقط أثناء الإطلاق)
-    createFireParticle(rocketObject.position.x, rocketObject.position.y - 3, rocketObject.position.z);
-  }
+  // إنشاء جزيئات الدخان
+  createSmokeParticle(rocketObject.position.x, rocketObject.position.y - 2, rocketObject.position.z);
+  
+  // إنشاء جزيئات النار
+  createFireParticle(rocketObject.position.x, rocketObject.position.y - 3, rocketObject.position.z);
   
   // ضبط مقياس الصاروخ تدريجيًا بعد الغيوم لإحساس المسافة (ينتقل من 1 إلى rocketScaleSpaceEnd)
   if (rocketObject.position.y < FOG_END_Y) {
@@ -526,16 +459,6 @@ function updateRocketLaunch() {
     isInOrbit = true;
     orbitAngle = 0; // إعادة تعيين زاوية المدار
     console.log('🚀 تم إطلاق الصاروخ ووصل إلى المدار!');
-    
-    // ضبط موضع الصاروخ ليكون على المدار مباشرة
-    const orbitRadius = ORBIT_SEMI_MAJOR_AXIS;
-    rocketObject.position.x = orbitRadius;
-    rocketObject.position.y = orbitTargetY;
-    rocketObject.position.z = 0;
-    rocketObject.rotation.z = -Math.PI / 2; // أفقي
-    
-    // إيقاف جميع الحركات
-    rocketObject.velocity = new THREE.Vector3(0, 0, 0);
   }
 }
 
@@ -590,32 +513,6 @@ function createFireParticle(x, y, z) {
   scene.add(fire);
 }
 
-// دالة إنشاء جزيئات الانفجار
-function createExplosionParticle(x, y, z) {
-  const explosionGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-  const explosionMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xffaa00,
-    emissive: 0xff6600,
-    transparent: true,
-    opacity: 1.0
-  });
-  
-  const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
-  explosion.position.set(x, y, z);
-  
-  launchParticles.push({
-    mesh: explosion,
-    velocity: new THREE.Vector3(
-      (Math.random() - 0.5) * 2.0,
-      Math.random() * 1.0 + 0.5,
-      (Math.random() - 0.5) * 2.0
-    ),
-    life: 1.0
-  });
-  
-  scene.add(explosion);
-}
-
 // دالة تحديث الجزيئات
 function updateParticles() {
   // تحديث جزيئات الدخان
@@ -647,206 +544,27 @@ function updateParticles() {
   }
 }
 
-// دالة فصل المرحلة الأولى
-function separateFirstStage() {
-  if (isFirstStageSeparated || !rocketObject) return;
-  
-  console.log('🚀 تم فصل المرحلة الأولى!');
-  isFirstStageSeparated = true;
-  
-  // نسخ الصاروخ الأصلي
-  const originalRocket = rocketObject.clone();
-  
-  // إنشاء مجموعة للجزء السفلي
-  firstStageObject = new THREE.Group();
-  
-  // البحث عن الجزء السفلي من الصاروخ (النصف السفلي)
-  originalRocket.children.forEach(child => {
-    if (child.position.y < 0) { // الجزء السفلي
-      const clonedChild = child.clone();
-      firstStageObject.add(clonedChild);
-    }
-  });
-  
-  // إذا لم نجد أجزاء سفلية، استخدم النصف السفلي من الصاروخ
-  if (firstStageObject.children.length === 0) {
-    // تقسيم الصاروخ إلى جزئين: علوي وسفلي
-    const rocketHeight = 20; // ارتفاع تقريبي للصاروخ
-    const separationPoint = rocketHeight / 2; // نقطة الفصل في المنتصف
-    
-    // نسخ الصاروخ كاملاً
-    const fullRocket = rocketObject.clone();
-    
-    // إنشاء الجزء السفلي (النصف السفلي)
-    const lowerHalf = fullRocket.clone();
-    lowerHalf.scale.y = 0.5; // نصف الارتفاع
-    lowerHalf.position.y = -separationPoint / 2; // تعديل الموضع
-    
-    firstStageObject.add(lowerHalf);
-  }
-  
-  // وضع المرحلة الأولى في نفس موضع الصاروخ
-  firstStageObject.position.copy(rocketObject.position);
-  firstStageObject.rotation.copy(rocketObject.rotation);
-  
-  // تعديل موضع المرحلة الأولى لتكون في الجزء السفلي
-  firstStageObject.position.y -= 6; // خفض المرحلة الأولى لتكون في الجزء السفلي
-  
-  // إضافة للمشهد
-  scene.add(firstStageObject);
-  
-  // إخفاء الجزء السفلي من الصاروخ الأصلي
-  hideLowerHalfOfRocket();
-  
-  // إضافة جزيئات انفجار كثيفة عند الفصل
-  for (let i = 0; i < 30; i++) {
-    createExplosionParticle(
-      firstStageObject.position.x + (Math.random() - 0.5) * 6,
-      firstStageObject.position.y + (Math.random() - 0.5) * 6,
-      firstStageObject.position.z + (Math.random() - 0.5) * 6
-    );
-  }
-  
-  // إضافة جزيئات دخان كثيفة
-  for (let i = 0; i < 15; i++) {
-    createSmokeParticle(
-      firstStageObject.position.x + (Math.random() - 0.5) * 4,
-      firstStageObject.position.y + (Math.random() - 0.5) * 4,
-      firstStageObject.position.z + (Math.random() - 0.5) * 4
-    );
-  }
-  
-  // إضافة صوت انفجار
-  console.log('💥 صوت انفجار المرحلة الأولى!');
-}
-
-// دالة تحديث الكاميرا
-function updateCamera() {
-  // الكاميرا لا تتبع الصاروخ تلقائياً
-  // يمكن للمستخدم التحكم بها يدوياً باستخدام المفاتيح
-}
-
-// دالة إخفاء النصف السفلي من الصاروخ الأصلي
-function hideLowerHalfOfRocket() {
-  if (!rocketObject) return;
-  
-  console.log('🔍 البحث عن الأجزاء السفلية لإخفائها...');
-  
-  // البحث عن الأجزاء السفلية من الصاروخ وإخفاؤها
-  let hiddenCount = 0;
-  rocketObject.children.forEach(child => {
-    // البحث عن الأجزاء السفلية بناءً على الموضع النسبي
-    if (child.position.y < 2) { // الجزء السفلي (أقل من 2)
-      child.visible = false;
-      hiddenCount++;
-      console.log(`👁️ تم إخفاء جزء سفلي: ${child.name || 'بدون اسم'} في الموضع Y=${child.position.y}`);
-    }
-  });
-  
-  console.log(`📊 تم إخفاء ${hiddenCount} جزء سفلي`);
-  
-  // إذا لم نجد أجزاء منفصلة، استخدم طريقة أخرى
-  if (hiddenCount === 0) {
-    console.log('⚠️ لم نجد أجزاء منفصلة، نستخدم تقليل الارتفاع');
-    
-    // إخفاء النصف السفلي من الصاروخ كاملاً
-    const originalScale = rocketObject.scale.y;
-    rocketObject.scale.y = originalScale * 0.6; // تقليل الارتفاع إلى 60%
-    
-    // رفع الصاروخ قليلاً لضبط الموضع
-    const originalY = rocketObject.position.y;
-    rocketObject.position.y = originalY + 3;
-    
-    console.log(`📏 تم تقليل ارتفاع الصاروخ من ${originalScale} إلى ${rocketObject.scale.y}`);
-    console.log(`📍 تم رفع موضع الصاروخ من ${originalY} إلى ${rocketObject.position.y}`);
-  }
-}
-
-// دالة تحديث حركة المرحلة الأولى
-function updateFirstStage() {
-  if (!isFirstStageSeparated || !firstStageObject) return;
-  
-  // تحريك المرحلة الأولى للأسفل مع ميلان واقعي
-  firstStageObject.position.add(firstStageVelocity);
-  
-  // إضافة دوران عشوائي للسقوط (أكثر واقعية)
-  firstStageObject.rotation.x += 0.03 + (Math.random() - 0.5) * 0.02;
-  firstStageObject.rotation.z += 0.025 + (Math.random() - 0.5) * 0.02;
-  firstStageObject.rotation.y += 0.01 + (Math.random() - 0.5) * 0.01;
-  
-  // إضافة جزيئات دخان كثيفة للسقوط
-  if (Math.random() < 0.4) { // 40% احتمال في كل إطار
-    createSmokeParticle(
-      firstStageObject.position.x + (Math.random() - 0.5) * 4,
-      firstStageObject.position.y + 3,
-      firstStageObject.position.z + (Math.random() - 0.5) * 4
-    );
-  }
-  
-  // إضافة جزيئات نار من المحركات أثناء السقوط
-  if (Math.random() < 0.2) { // 20% احتمال في كل إطار
-    createFireParticle(
-      firstStageObject.position.x + (Math.random() - 0.5) * 3,
-      firstStageObject.position.y + 2,
-      firstStageObject.position.z + (Math.random() - 0.5) * 3
-    );
-  }
-  
-  // إخفاء المرحلة الأولى إذا وصلت للأرض
-  if (firstStageObject.position.y < 0) {
-    // إضافة انفجار نهائي عند الوصول للأرض
-    for (let i = 0; i < 25; i++) {
-      createExplosionParticle(
-        firstStageObject.position.x + (Math.random() - 0.5) * 8,
-        2,
-        firstStageObject.position.z + (Math.random() - 0.5) * 8
-      );
-    }
-    
-    // إخفاء المرحلة الأولى بدلاً من إزالتها
-    firstStageObject.visible = false;
-    firstStageObject = null;
-    console.log('💥 المرحلة الأولى وصلت للأرض وانفجرت!');
-  }
-}
-
-// دالة لضمان أن الصاروخ يبقى على المدار
-function ensureRocketOnOrbit() {
-  if (isInOrbit && rocketObject) {
-    // حساب المسافة من مركز المدار
-    const distanceFromCenter = Math.sqrt(
-      Math.pow(rocketObject.position.x, 2) + 
-      Math.pow(rocketObject.position.z, 2)
-    );
-    
-    // إذا كان الصاروخ بعيد عن المدار، أعد تموضعه
-    const orbitRadius = ORBIT_SEMI_MAJOR_AXIS;
-    const tolerance = 0.5; // تسامح في المسافة
-    
-    if (Math.abs(distanceFromCenter - orbitRadius) > tolerance) {
-      // إعادة تموضع الصاروخ على المدار
-      const currentAngle = Math.atan2(rocketObject.position.z, rocketObject.position.x);
-      rocketObject.position.x = orbitRadius * Math.cos(currentAngle);
-      rocketObject.position.z = orbitRadius * Math.sin(currentAngle);
-      rocketObject.position.y = orbitTargetY;
-    }
-  }
-}
-
-
-
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
   updateMovement();
   updateClampRotation();
   updateRocketLaunch();
-  ensureRocketOnOrbit(); // ضمان بقاء الصاروخ على المدار
-  updateFirstStage(); // تحديث حركة المرحلة الأولى
   updateParticles();
 
-  // تحديث الكاميرا
-  updateCamera();
+  // تتبع الكاميرا للصاروخ أثناء الإطلاق ليبقى في منتصف الشاشة مع إبعاد للخلف لظهور كامل الصاروخ
+  if (isLaunching && rocketObject) {
+    const followOffsetY = 10; // ارتفاع الكاميرا فوق الصاروخ
+    const followOffsetZ = 35; // مسافة الكاميرا خلف الصاروخ
+    camera.position.x = rocketObject.position.x;
+    camera.position.y = rocketObject.position.y + followOffsetY;
+    camera.position.z = rocketObject.position.z + followOffsetZ;
+    camera.lookAt(
+      rocketObject.position.x,
+      rocketObject.position.y + 5, // النظر نحو منتصف الصاروخ تقريبًا
+      rocketObject.position.z
+    );
+  }
 
   // --- انتقال الضباب تدريجياً مع الارتفاع ---
   let fogStart = 200, fogEnd = 330;
@@ -956,12 +674,6 @@ function animate() {
     } else {
       launchStatusElement.textContent = `حالة الإطلاق: اضغط X لبدء الإطلاق`;
     }
-  }
-  
-  // عرض معلومات الكاميرا
-  const cameraInfoElement = document.getElementById('cameraInfo');
-  if (cameraInfoElement) {
-    cameraInfoElement.textContent = `📹 الكاميرا: ${cameraFollowMode ? 'تتبع تلقائي' : 'تحكم يدوي'} | X:${cameraOffsetX} Y:${cameraOffsetY} Z:${cameraOffsetZ}`;
   }
 }
 animate();
