@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚀 محاكاة إطلاق الصاروخ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .container {
+      text-align: center;
+      max-width: 800px;
+      padding: 20px;
+    }
+    
+    .title {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+    }
+    
+    .subtitle {
+      font-size: 1.2rem;
+      margin-bottom: 40px;
+      color: #ccc;
+      line-height: 1.6;
+    }
+    
+    .stages-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin: 40px 0;
+    }
+    
+    .stage-card {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .stage-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.5s ease;
+    }
+    
+    .stage-card:hover::before {
+      left: 100%;
+    }
+    
+    .stage-card:hover {
+      transform: translateY(-10px);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stage-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      display: block;
+    }
+    
+    .stage-title {
+      font-size: 1.5rem;
+      margin-bottom: 15px;
+      color: #4ecdc4;
+    }
+    
+    .stage-description {
+      color: #ccc;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    
+    .stage-features {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+    
+    .stage-features li {
+      padding: 5px 0;
+      color: #ddd;
+      position: relative;
+      padding-right: 20px;
+    }
+    
+    .stage-features li::before {
+      content: '✓';
+      position: absolute;
+      right: 0;
+      color: #4ecdc4;
+      font-weight: bold;
+    }
+    
+    .launch-btn {
+      background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 50px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .launch-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+    }
+    
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+    }
+    
+    .controls-info {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .controls-info h3 {
+      color: #4ecdc4;
+      margin-bottom: 15px;
+    }
+    
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .control-item:last-child {
+      border-bottom: none;
+    }
+    
+    .key {
+      background: #333;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      color: #4ecdc4;
+      border: 1px solid #555;
+    }
+    
+    @media (max-width: 768px) {
+      .title {
+        font-size: 2rem;
+      }
+      
+      .stages-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .stage-card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">🚀 محاكاة إطلاق الصاروخ</h1>
+    <p class="subtitle">
+      تجربة تفاعلية ثلاثية الأبعاد لمحاكاة إطلاق الصاروخ والدوران حول الأرض
+    </p>
+    
+    <div class="stages-container">
+      <!-- المرحلة الأولى -->
+      <div class="stage-card" onclick="launchStage1()">
+        <span class="stage-icon">🚀</span>
+        <h2 class="stage-title">المرحلة الأولى: إطلاق الصاروخ</h2>
+        <p class="stage-description">
+          شاهد عملية إطلاق الصاروخ من قاعدة الإطلاق مع تفاعل كامل
+        </p>
+        <ul class="stage-features">
+          <li>تدوير الكماشة</li>
+          <li>إطلاق الصاروخ</li>
+          <li>مسار منحني واقعي</li>
+          <li>تأثيرات بصرية</li>
+        </ul>
+        <button class="launch-btn">ابدأ المرحلة الأولى</button>
+      </div>
+      
+      <!-- المرحلة الثانية -->
+      <div class="stage-card" onclick="launchStage2()">
+        <span class="stage-icon">🌍</span>
+        <h2 class="stage-title">المرحلة الثانية: الدوران حول الأرض</h2>
+        <p class="stage-description">
+          استمتع بمشاهدة دوران الأرض والقمر الصناعي في المدار
+        </p>
+        <ul class="stage-features">
+          <li>كرة أرضية واقعية</li>
+          <li>مدار مرئي</li>
+          <li>قمر صناعي يدور</li>
+          <li>مشهد فضائي</li>
+        </ul>
+        <button class="launch-btn">ابدأ المرحلة الثانية</button>
+      </div>
+    </div>
+    
+    <div class="controls-info">
+      <h3>🎮 التحكم في المرحلة الأولى:</h3>
+      <div class="control-item">
+        <span>تدوير الكماشة:</span>
+        <span class="key">X</span>
+      </div>
+      <div class="control-item">
+        <span>إطلاق الصاروخ:</span>
+        <span class="key">L</span>
+      </div>
+      <div class="control-item">
+        <span>التحكم في الكاميرا:</span>
+        <span class="key">WASD + Mouse</span>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>تم تطوير هذا المشروع باستخدام Three.js</p>
+      <p>🚀 استمتع بتجربة الفضاء! 🌍</p>
+    </div>
+  </div>
+
+  <script>
+    function launchStage1() {
+      window.location.href = 'stage1.html';
+    }
+    
+    function launchStage2() {
+      window.location.href = 'orbit.html';
+    }
+    
+    // إضافة تأثيرات تفاعلية
+    document.querySelectorAll('.stage-card').forEach(card => {
+      card.addEventListener('mouseenter', function() {
+        this.style.borderColor = 'rgba(78, 205, 196, 0.8)';
+      });
+      
+      card.addEventListener('mouseleave', function() {
+        this.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      });
+    });
+  </script>
+</body>
+</html>
+
